@@ -42,7 +42,12 @@ uint64_t do_sbox(const int boxs, const uint64_t chunk) {
     for (int i = 0; i < 4; ++i) {
         set_bit(&col, i, get_bit(chunk, 4 - i));
     }
-    return S_BOX[boxs][((chunk & 1) << 1) | ((chunk >> 5) & 1)][col];
+    uint64_t inv = S_BOX[boxs][((chunk & 1) << 1) | ((chunk >> 5) & 1)][col];
+    uint64_t result = 0;
+    for (int i = 0; i < 4; ++i) {
+        set_bit(&result, i, get_bit(inv, 3 - i));
+    }
+    return result;
 }
 
 uint64_t feistel(const uint64_t old_right, const uint64_t key) {
@@ -57,14 +62,14 @@ uint64_t feistel(const uint64_t old_right, const uint64_t key) {
 }
 
 void gernerate_subkey(uint64_t key, uint64_t subkey[]) {
-    key = do_permutation(&PERM_REMOVE_PARITY, key);
+    key = do_permutation(&PERM_PC1, key);
     uint64_t C, D;
     C = key & 0xFFFFFFF;
     D = key >> 28;
     for (int i = 1; i <= 16; ++i) {
         C = loop_right_shift(C, 28);
         D = loop_right_shift(D, 28);
-        if (i == 1 || i == 2 || i == 9 || i == 16) {
+        if (i != 1 && i != 2 && i != 9 && i != 16) {
             C = loop_right_shift(C, 28);
             D = loop_right_shift(D, 28);
         }

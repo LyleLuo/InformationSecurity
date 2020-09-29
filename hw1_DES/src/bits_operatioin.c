@@ -35,7 +35,7 @@ uint64_t char_str_to_uint64(char str[8]) {
     uint64_t result = 0;
     for (int i = 0; i < 64; ++i) {
         uint64_t ch = str[i / 8];
-        uint64_t state = (ch >> (7 - (i % 8)) & 1);
+        uint64_t state = (ch >> (7 - (i % 8))) & 1;
         set_bit(&result, i, state);
     }
     return result;
