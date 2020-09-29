@@ -104,6 +104,7 @@ int main(int argc,char **argv) {
 
     des_decrypt(buffer, buffer, key);
     fprintf(stdout, "%s", buffer);
+    fclose(fp_c);
 } 
 ```
 结果如下所示，可以看见自己写的解密函数可以解密密文。因此该库的正确性是可以保证的。
@@ -115,4 +116,140 @@ Hello, world!
 [luowle@VM_0_4_centos test]$ ./../bin/des 
 Hello, world!
 ```
+
+## 修改主函数使其可以对文件加密解密
+操作如下所示  
+没有密钥，先随机产生一个密钥：key，加密解密是正常的
+```sh
+[luowle@VM_0_4_centos final]$ ls -l
+total 8
+-rw-rw-r-- 1 luowle luowle 24 Sep 30 01:42 final_test
+-rw-rw-r-- 1 luowle luowle 14 Sep 30 01:42 hello_test
+# 查看明文内容
+[luowle@VM_0_4_centos final]$ cat hello_test 
+Hello, world!
+# 随机生成一个密钥：key 进行加密
+[luowle@VM_0_4_centos final]$ ./../bin/des e hello_test - encrypt_hello
+# cat查看密文内容
+[luowle@VM_0_4_centos final]$ cat encrypt_hello 
+<AvQ[luowle@VM_0_4_centos fina
+# 使用刚刚生成的密钥解密
+[luowle@VM_0_4_centos final]$ ./../bin/des d encrypt_hello key decrypt_hello
+# 查看解密后的明文
+[luowle@VM_0_4_centos final]$ cat decrypt_hello 
+Hello, world!
+[luowle@VM_0_4_centos final]$ ls -l
+total 20
+-rw-rw-r-- 1 luowle luowle 14 Sep 30 01:54 decrypt_hello
+-rw-rw-r-- 1 luowle luowle 16 Sep 30 01:53 encrypt_hello
+-rw-rw-r-- 1 luowle luowle 24 Sep 30 01:42 final_test
+-rw-rw-r-- 1 luowle luowle 14 Sep 30 01:42 hello_test
+-rw-rw-r-- 1 luowle luowle  8 Sep 30 01:53 key
+```
+使用刚刚生成的密钥进行加密解密
+```sh
+[luowle@VM_0_4_centos final]$ ls -l
+total 20
+-rw-rw-r-- 1 luowle luowle 14 Sep 30 01:54 decrypt_hello
+-rw-rw-r-- 1 luowle luowle 16 Sep 30 01:53 encrypt_hello
+-rw-rw-r-- 1 luowle luowle 24 Sep 30 01:42 final_test
+-rw-rw-r-- 1 luowle luowle 14 Sep 30 01:42 hello_test
+-rw-rw-r-- 1 luowle luowle  8 Sep 30 01:53 key
+# 查看明文内容
+[luowle@VM_0_4_centos final]$ cat final_test 
+This is the final test!
+# 使用刚刚产生的key加密
+[luowle@VM_0_4_centos final]$ ./../bin/des e final_test key encrypt_test
+# cat 查看密文
+[luowle@VM_0_4_centos final]$ cat encrypt_test 
+y-
+  P(+P,͉[luowle@VM_0_4_centos final]$ 
+# 使用同一个key解密
+[luowle@VM_0_4_centos final]$ ./../bin/des d encrypt_test key decrypt_test
+# 查看解密后的密文
+[luowle@VM_0_4_centos final]$ cat decrypt_test 
+This is the final test!
+# key，密文等文件大小均符合DES标准
+[luowle@VM_0_4_centos final]$ ls -l
+total 28
+-rw-rw-r-- 1 luowle luowle 14 Sep 30 01:54 decrypt_hello
+-rw-rw-r-- 1 luowle luowle 24 Sep 30 01:59 decrypt_test
+-rw-rw-r-- 1 luowle luowle 16 Sep 30 01:53 encrypt_hello
+-rw-rw-r-- 1 luowle luowle 32 Sep 30 01:58 encrypt_test
+-rw-rw-r-- 1 luowle luowle 24 Sep 30 01:42 final_test
+-rw-rw-r-- 1 luowle luowle 14 Sep 30 01:42 hello_test
+-rw-rw-r-- 1 luowle luowle  8 Sep 30 01:53 key
+```
+
+主函数代码如下所示
+```c
+#include <stdio.h>
+#include "des.h"
+
+void print_error() {
+    fprintf(stderr, "Usage: ./des e or d inputfile keyfile outputfile\n");
+    fprintf(stderr, "Example: ./des e inputfile keyfile outputfile\n");
+    fprintf(stderr, "you can use '-' instead of keyfile to get a key. Then a keyfile named 'key' will be create in current dirtionary.\n");
+}
+
+int main(int argc, char **argv) {
+    if (argc != 5) {
+        print_error();
+    }
+    else {
+        char buffer[10000], key[8];
+        if (argv[1][0] == 'e') {
+            FILE *fp_in = NULL, *fp_key = NULL, *fp_out = NULL;
+            fp_in = fopen(argv[2], "r");
+
+            int i = 0;
+            for (char ch; (ch = fgetc(fp_in)) != EOF; ++i) {
+                buffer[i] = ch;
+            }
+            
+            buffer[i] = 0;
+            if (argv[3][0] != '-') {
+                fp_key = fopen(argv[3], "r");
+                fscanf(fp_key, "%s", key);
+            }
+            else {
+                generate_key(key);
+                fp_key = fopen("key", "w");
+                fprintf(fp_key, "%s", key);
+            }
+            des_encrypt(buffer, buffer, key);
+            fp_out = fopen(argv[4], "w");
+            fputs(buffer, fp_out);
+            fclose(fp_in);
+            fclose(fp_key);
+            fclose(fp_out);   
+        }
+        else if (argv[1][0] == 'd'){
+            FILE *fp_in = NULL, *fp_key = NULL, *fp_out = NULL;
+            fp_in = fopen(argv[2], "r");
+            
+            int i = 0;
+            for (char ch; (ch = fgetc(fp_in)) != EOF; ++i) {
+                buffer[i] = ch;
+            }
+            buffer[i] = 0;
+
+            fp_key = fopen(argv[3], "r");
+            fscanf(fp_key, "%s", key);
+
+            des_decrypt(buffer, buffer, key);
+            fp_out = fopen(argv[4], "w");
+            fputs(buffer, fp_out);
+            fclose(fp_in);
+            fclose(fp_key);
+            fclose(fp_out); 
+        }
+        else {
+            print_error();
+        }
+    }
+    
+}
+```
+
 

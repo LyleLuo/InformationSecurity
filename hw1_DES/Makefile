@@ -3,7 +3,6 @@ INC_DIR=include
 SRC_DIR=src
 BIN_DIR=bin
 BUILD_DIR=build
-OBJ_DIR=obj
 CFLAGS= -std=c99 -g
 
 SOURCE_FILES=$(shell find $(SRC_DIR) -name '*.c')
