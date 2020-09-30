@@ -25,6 +25,13 @@ typedef struct
  */
 uint64_t do_permutation(const permutation_t *perm, const uint64_t chunk);
 
+/**
+ * @brief 做 DES 的16次迭代和迭代后置换LR
+ * @param key DES 的密钥
+ * @param chunk 要做迭代的块
+ * @param state 判断是加密还是解密，DES_ENCRYPT是加密，DES_ENCRYPT是解密
+ * @return 执行完迭代置换的结果
+ */
 uint64_t do_iter_and_switch(uint64_t key, const uint64_t chunk, int state);
 
 /**
@@ -36,16 +43,53 @@ uint64_t do_iter_and_switch(uint64_t key, const uint64_t chunk, int state);
  */
 uint64_t do_sbox(const int boxs, const uint64_t chunk);
 
+/**
+ * @brief DES的feistel函数
+ * @param old_right 对应于Ri-1
+ * @param key 子密钥Ki
+ * @return feistel函数的结果
+ */
 uint64_t feistel(const uint64_t old_right, const uint64_t key);
 
+/**
+ * @brief 生成一组子密钥
+ * @param key DES 的密钥
+ * @param subkey 子密钥数组的指针
+ * @return 不返回值，结果会存储在subkey数组里
+ */
 void gernerate_subkey(uint64_t key, uint64_t subkey[]);
 
+/**
+ * @brief 执行 DES 的IP置换，循环迭代，IP逆置换过程
+ * @param input 以 uint64_t 输入的一个64位块
+ * @param key DES 的密钥
+ * @param state 判断是加密还是解密，DES_ENCRYPT是加密，DES_ENCRYPT是解密
+ * @return 加密或者解密的块
+ */
 uint64_t _des_process(uint64_t input, uint64_t key, int state);
 
+/**
+ * @brief DES 的加密函数
+ * @param input 需要加密的明文字符流头指针
+ * @param output 加密后的密文的头指针
+ * @param key 以 char[8] 为格式的密钥，char[0]最左边的二进制数对应于 uint64_t 二进制形式的最右一位
+ * @return 没有返回，结果在 output 中
+ */
 void des_encrypt(char * input, char * output, char key[8]);
 
+/**
+ * @brief DES 的解密函数
+ * @param input 需要加密的密文字符流头指针
+ * @param output 解密后的明文的头指针
+ * @param key 以 char[8] 为格式的密钥，char[0]最左边的二进制数对应于 uint64_t 二进制形式的最右一位
+ * @return 没有返回，结果在 output 中
+ */
 void des_decrypt(char * input, char * output, char key[8]);
 
+/**
+ * @brief 随机生成一个密钥
+ * @param key 储存生成密钥的缓冲区
+ */
 void generate_key(char key[8]);
 
 
@@ -56,4 +100,3 @@ extern const int S_BOX[8][4][16];
 extern const permutation_t PERM_P;
 extern const permutation_t PERM_PC1;
 extern const permutation_t PERM_PC2;
-extern const permutation_t PERM_REMOVE_PARITY;

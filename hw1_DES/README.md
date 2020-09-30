@@ -19,7 +19,7 @@ hw1_DES
     |   --- des.h
     |
     --- src
-        |   |
+    |   |
     |   --- bits_operation.c
     |   |
     |   --- des.c
@@ -107,7 +107,7 @@ int main(int argc,char **argv) {
     fclose(fp_c);
 } 
 ```
-结果如下所示，可以看见自己写的解密函数可以解密密文。因此该库的正确性是可以保证的。
+结果如下所示，**可以看见自己写的解密函数可以解密密文。因此该库的正确性是可以保证的**。
 
 ```
 [luowle@VM_0_4_centos test]$ cat input 

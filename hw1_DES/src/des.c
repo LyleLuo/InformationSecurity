@@ -1,5 +1,11 @@
 #include "des.h"
 
+/**
+ * @brief 根据置换表 permutation_table，将 chunk 进行置换
+ * @param perm 置换表，表中每个元素 perm[i] 为 e 表示对应位置 result[i] = chunk[e]
+ * @param chunk 将被置换的数组
+ * @return 置换后的数组
+ */
 uint64_t do_permutation(const permutation_t *perm, const uint64_t chunk) {
     uint64_t result = 0;
     for (int i = 0; i < perm->to_bits; ++i) {
@@ -8,6 +14,13 @@ uint64_t do_permutation(const permutation_t *perm, const uint64_t chunk) {
     return result;
 }
 
+/**
+ * @brief 做 DES 的16次迭代和迭代后置换LR
+ * @param key DES 的密钥
+ * @param chunk 要做迭代的块
+ * @param state 判断是加密还是解密，DES_ENCRYPT是加密，DES_ENCRYPT是解密
+ * @return 执行完迭代置换的结果
+ */
 uint64_t do_iter_and_switch(uint64_t key, const uint64_t chunk, int state) {
     uint32_t old_left, old_right, left, right;
     old_left = chunk;
@@ -37,6 +50,13 @@ uint64_t do_iter_and_switch(uint64_t key, const uint64_t chunk, int state) {
     return result;
 }
 
+/**
+ * @brief 做 DES 的 S-Box 选择
+ * @note S-Box 选择函数是 6 位转 4 位的变换。
+ * 假设 Si=(abcdef)2，那么 n=(af)2 确定行号，m=(bcde)2 确定列号
+ * @param chunk 二进制位数为 6 的 Feistel 轮函数分组
+ * @return 二进制位数为 4 的选择后的分组
+ */
 uint64_t do_sbox(const int boxs, const uint64_t chunk) {
     uint64_t col = 0;
     for (int i = 0; i < 4; ++i) {
@@ -50,6 +70,12 @@ uint64_t do_sbox(const int boxs, const uint64_t chunk) {
     return result;
 }
 
+/**
+ * @brief DES的feistel函数
+ * @param old_right 对应于Ri-1
+ * @param key 子密钥Ki
+ * @return feistel函数的结果
+ */
 uint64_t feistel(const uint64_t old_right, const uint64_t key) {
     uint64_t right = do_permutation(&PERM_E_EXTENSION, old_right);
     right ^= key;
@@ -61,6 +87,12 @@ uint64_t feistel(const uint64_t old_right, const uint64_t key) {
     return do_permutation(&PERM_P, result);
 }
 
+/**
+ * @brief 生成一组子密钥
+ * @param key DES 的密钥
+ * @param subkey 子密钥数组的指针
+ * @return 不返回值，结果会存储在subkey数组里
+ */
 void gernerate_subkey(uint64_t key, uint64_t subkey[]) {
     key = do_permutation(&PERM_PC1, key);
     uint64_t C, D;
@@ -79,12 +111,26 @@ void gernerate_subkey(uint64_t key, uint64_t subkey[]) {
 
 }
 
+/**
+ * @brief 执行 DES 的IP置换，循环迭代，IP逆置换过程
+ * @param input 以 uint64_t 输入的一个64位块
+ * @param key DES 的密钥
+ * @param state 判断是加密还是解密，DES_ENCRYPT是加密，DES_ENCRYPT是解密
+ * @return 加密或者解密的块
+ */
 uint64_t _des_process(uint64_t input, uint64_t key, int state) {
     uint64_t result = do_permutation(&PERM_IP, input);
     result = do_iter_and_switch(key, result, state);
     return do_permutation(&PERM_IPINV, result);
 }
 
+/**
+ * @brief DES 的加密函数
+ * @param input 需要加密的明文字符流头指针
+ * @param output 加密后的密文的头指针
+ * @param key 以 char[8] 为格式的密钥，char[0]最左边的二进制数对应于 uint64_t 二进制形式的最右一位
+ * @return 没有返回，结果在 output 中
+ */
 void des_encrypt(char * input, char * output, char key[8]) {
     int remain = 8 - strlen(input) % 8;
     int origin_len = strlen(input);
@@ -104,6 +150,13 @@ void des_encrypt(char * input, char * output, char key[8]) {
     free(str);
 }
 
+/**
+ * @brief DES 的解密函数
+ * @param input 需要加密的密文字符流头指针
+ * @param output 解密后的明文的头指针
+ * @param key 以 char[8] 为格式的密钥，char[0]最左边的二进制数对应于 uint64_t 二进制形式的最右一位
+ * @return 没有返回，结果在 output 中
+ */
 void des_decrypt(char * input, char * output, char key[8]) {
     int len = strlen(input);
     char * str = malloc(len);
@@ -117,6 +170,10 @@ void des_decrypt(char * input, char * output, char key[8]) {
     free(str);
 }
 
+/**
+ * @brief 随机生成一个密钥
+ * @param key 储存生成密钥的缓冲区
+ */
 void generate_key(char key[8]) {
     srand((unsigned)time(NULL));
     uint64_t r = rand();
@@ -270,19 +327,5 @@ const permutation_t PERM_PC2 = {
         29, 39, 50, 44, 32, 47,
         43, 48, 38, 55, 33, 52,
         45, 41, 49, 35, 28, 31
-    }
-};
-
-const permutation_t PERM_REMOVE_PARITY = {
-    64, 56,
-    {
-         0,  1,  2,  3,  4,  5,  6,
-         8,  9, 10, 11, 12, 13, 14,
-        16, 17, 18, 19, 20, 21, 22,
-        24, 25, 26, 27, 28, 29, 30,
-        32, 33, 34, 35, 36, 37, 38,
-        40, 41, 42, 43, 44, 45, 46,
-        48, 49, 50, 51, 52, 53, 54,
-        56, 57, 58, 59, 60, 61, 62
     }
 };
