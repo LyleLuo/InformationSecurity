@@ -109,10 +109,13 @@ int main(int argc,char **argv) {
 ```
 结果如下所示，**可以看见自己写的解密函数可以解密密文。因此该库的正确性是可以保证的**。
 
-```
+```sh
+# 需要加密的密文内容
 [luowle@VM_0_4_centos test]$ cat input 
 Hello, world!
+# 使用 openssl加密
 [luowle@VM_0_4_centos test]$ openssl enc -des-ecb -K e0e0e0e0f1f1f1f1 -in input -out ciphertext
+# 使用自己写的程序解密
 [luowle@VM_0_4_centos test]$ ./../bin/des 
 Hello, world!
 ```
