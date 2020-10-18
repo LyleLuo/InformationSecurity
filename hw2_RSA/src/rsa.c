@@ -7,9 +7,9 @@
 #include <stdint.h>
 
 void generate_key(int k, mpz_t n, mpz_t e, mpz_t d) {
-	gmp_randstate_t grt;
-	gmp_randinit_default(grt);
-	gmp_randseed_ui(grt, time(NULL)); 
+    gmp_randstate_t grt;
+    gmp_randinit_default(grt);
+    gmp_randseed_ui(grt, time(NULL)); 
     mpz_t p_lb, q_lb, n_lb, p_hb, q_hb, p, q, f, temp;
     mpz_init(p_lb);
     mpz_init(q_lb);    
