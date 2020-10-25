@@ -81,7 +81,6 @@ $$
 $$
 n^{\prime}=c^{d} \bmod N=\left(n^{e}\right)^{d} \bmod N=n \bmod N
 $$
-即为 $n^{\prime} \equiv n \bmod N$.
 
 
 ## 数据结构
