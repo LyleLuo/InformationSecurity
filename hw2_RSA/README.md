@@ -195,17 +195,17 @@ void generate_key(int k, mpz_t n, mpz_t e, mpz_t d) {
 
 ## 加密和解密
 ### 核心
-Bob 引用公钢 $(e, N),$ 利用下面的公式, 将 $n$ 加密为 $c$ :
+Bob 引用公钥 $(e, N),$ 利用下面的公式, 将 $n$ 加密为 $c$ :
 
 $c=n^{e} \bmod N$
 
 Bob 算出 $c$ 后可以将它经公开媒体传递给 Alice。
 
-Alice 得到 $\mathrm{Bob}$ 的消息 $c$ 后初用她的去钢 $(d, N)$ 解码。 Alice 利用以下的公式将 $c$ 转换为 $n^{\prime}:$
+Alice 得到 $\mathrm{Bob}$ 的消息 $c$ 后利用她的私钥 $(d, N)$ 解码。 Alice 利用以下的公式将 $c$ 转换为 $n^{\prime}$:
 
 $n^{\prime}=c^{d} \bmod N$
 
-Alice 得到的 $n^{\prime}$ 就是 $B o b$ 的 $n,$ 因此可以将原来的信息 $M$ 准确复原。
+Alice 得到的 $n^{\prime}$ 就是 Bob 的 $n,$ 因此可以将原来的信息 $M$ 准确复原。
 
 上述过程是对称的，可以公用同一个函数
 ```c
