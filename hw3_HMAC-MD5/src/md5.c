@@ -28,15 +28,13 @@ static const uint32_t S[] = {
     6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21
 };
 
-void uint32_reverse(uint32_t * a) {
-    uint32_t temp = 0;
-    for (int j = 0; j < 4; ++j) {
-        temp = temp << 8;
-        temp |= (*a >> (8 * j)) & 0xff;
-    }
-    *a = temp;
-}
-
+/**
+* @brief MD5 哈希函数
+* @param message 需要进行哈希的字符串
+* @param message_len 需要进行哈希的字符串的长度
+* @param message_bytes_len 信息的字节数
+* @param message_block_bits_len 哈希函数所用信息块的比特数
+*/
 void MD5(char message[], uint64_t message_len, uint8_t *result) {
     // 先处理不需要填充的块
     uint64_t non_flled_block_num = message_len / 64;
@@ -47,7 +45,7 @@ void MD5(char message[], uint64_t message_len, uint8_t *result) {
             mb.x[j] = 0;
             for (int k = 3; k >= 0; --k) {
                 mb.x[j] = mb.x[j] << 8;
-                mb.x[j] |= message[64 * i + 4 * j + k];
+                mb.x[j] |= (uint8_t)message[64 * i + 4 * j + k];
             }
         }
         cv = HMD5(cv, mb);
@@ -64,11 +62,11 @@ void MD5(char message[], uint64_t message_len, uint8_t *result) {
             mb.x[i] = 0;
             for (int j = 3; j >= 0; --j) {
                 mb.x[i] = mb.x[i] << 8;
-                mb.x[i] |= message[64 * non_flled_block_num + 4 * i + j];
+                mb.x[i] |= (uint8_t)message[64 * non_flled_block_num + 4 * i + j];
             }
         }
 
-        // 填不满一整个x
+        // 填不满一整个x，则补1000..。能填满则直接填1000....
         int bytes_remain = message_remain % 4;
         mb.x[i] = 0;
         for (int j = 3; j >= 0; --j) {
@@ -77,14 +75,15 @@ void MD5(char message[], uint64_t message_len, uint8_t *result) {
                 continue;
             }
             else if (j == bytes_remain) {
-                mb.x[i] |= 0x80;
+                mb.x[i] |= 0x00000080;
             }
             else {
-                mb.x[i] |= message[64 * non_flled_block_num + 4 * i + j];
+                mb.x[i] |= (uint8_t)message[64 * non_flled_block_num + 4 * i + j];
             }
         }
         ++i;
         // 判断该块是否还有位置填充信息长度
+        // 如果有
         if (i <= 14) {
             for (; i < 14; ++i) {
                 mb.x[i] = 0;
@@ -93,27 +92,27 @@ void MD5(char message[], uint64_t message_len, uint8_t *result) {
             mb.x[14] = message_bits & (uint32_t)0xffffffff;
             cv = HMD5(cv, mb);
         }
+        // 如果没有则需要新增一个块
         else {
             for (; i < 16; ++i) {
                 mb.x[i] = 0;
             }
             cv = HMD5(cv, mb);
-            mb.x[0] = 0x80000000;
-            for (int i = 1; i < 14; ++i) {
+            for (int i = 0; i < 14; ++i) {
                 mb.x[i] = 0;
             }
-            mb.x[15] = message_bits >> 32;
             mb.x[14] = message_bits & (uint32_t)0xffffffff;
+            mb.x[15] = message_bits >> 32;
             cv = HMD5(cv, mb);
         }
     }
     else {
-        mb.x[0] = 0x80000000;
+        mb.x[0] = 0x00000080;
         for (int i = 1; i < 14; ++i) {
             mb.x[i] = 0;
         }
-        mb.x[15] = message_bits >> 32;
         mb.x[14] = message_bits & (uint32_t)0xffffffff;
+        mb.x[15] = message_bits >> 32;
         cv = HMD5(cv, mb);
     }
 
@@ -133,9 +132,14 @@ void MD5(char message[], uint64_t message_len, uint8_t *result) {
         result[12 + i] = 0;
         result[12 + i] = (cv.d >> (8 * i)) & 0xff;
     }
-
 }
 
+/**
+* @brief HMD5 函数
+* @param cv HMD5 的CV输入
+* @param mb message block
+* @return 返回哈希后的CV结果
+*/
 CV HMD5(CV cv, MB mb) {
     CV origin_cv = cv;
     for (int i = 0; i < 4; ++i) {
@@ -169,4 +173,15 @@ CV HMD5(CV cv, MB mb) {
     cv.c += origin_cv.c;
     cv.d += origin_cv.d;
     return cv;
+}
+
+/**
+* @brief 把长度为16 bytes的缓冲区以16进制形式顺序打印出来
+* @param result MD5 哈希后的结果
+*/
+void print_result(uint8_t * result) {
+    for (int i = 0; i < 16; ++i) {
+        printf("%02x", result[i]);
+    }
+    printf("\n");
 }
