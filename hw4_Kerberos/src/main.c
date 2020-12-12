@@ -50,7 +50,7 @@ int main() {
             print_key(message_b.key);
 
             // 使用 key tgs 加密 message b 的原始数据
-            cipher_size = des_encrypt(&message_b, sizeof(Ticket), buffer, key_tgs);
+            cipher_size = des_encrypt((uint8_t*)&message_b, sizeof(Ticket), buffer, key_tgs);
             printf("AS: send message b(TGT) ciphertext of client %d to client %d: ", recv_status.MPI_SOURCE, recv_status.MPI_SOURCE);
             print_message(buffer, cipher_size);
             MPI_Send(buffer, cipher_size, MPI_UNSIGNED_CHAR, recv_status.MPI_SOURCE, 0, MPI_COMM_WORLD);
@@ -86,7 +86,7 @@ int main() {
             MPI_Get_count(&cipher_message_b_status, MPI_UNSIGNED_CHAR, &cipher_message_b_size);
             printf("TGS: recv message b(TGT) ciphertext from client %d: ", cipher_message_b_status.MPI_SOURCE);
             print_message(buffer, cipher_message_b_size);
-            des_decrypt(buffer, cipher_message_b_size, &message_b, key_tgs);
+            des_decrypt(buffer, cipher_message_b_size, (uint8_t*)&message_b, key_tgs);
             memcpy(key_client_tgs, message_b.key, 8);
             printf("TGS: message b(TGT) origin text after decrypt from client %d: client id: %d, address: %d, validity: %d, key_client_tgs: ", cipher_message_b_status.MPI_SOURCE, message_b.id, message_b.client_address, message_b.validity);
             print_key(message_b.key);
@@ -98,7 +98,7 @@ int main() {
             MPI_Get_count(&cipher_message_d_status, MPI_UNSIGNED_CHAR, &cipher_message_d_size);
             printf("TGS: recv message d ciphertext from client %d: ", cipher_message_d_status.MPI_SOURCE);
             print_message(buffer, cipher_message_d_size);
-            des_decrypt(buffer, cipher_message_d_size, &message_d, message_b.key);
+            des_decrypt(buffer, cipher_message_d_size, (uint8_t*)&message_d, message_b.key);
             printf("TGS: message d origin text from client %d: client id: %d, time: %ld\n",cipher_message_d_status.MPI_SOURCE, message_d.id, message_d.timestamp);
 
             printf("TGS: send service ID: %d to client %d\n", service_ID, cipher_message_d_status.MPI_SOURCE);
@@ -128,7 +128,7 @@ int main() {
                 generate_key(key_client_ss);
                 Ticket st = {cipher_message_d_status.MPI_SOURCE, cipher_message_d_status.MPI_SOURCE, 600};
                 memcpy(st.key, key_client_ss, 8);
-                int st_ciphertext_size = des_encrypt(&st, sizeof(Ticket), buffer, key_ss);
+                int st_ciphertext_size = des_encrypt((uint8_t*)&st, sizeof(Ticket), buffer, key_ss);
                 printf("TGS: message e(ST) origin text of client %d: client id: %d, address: %d, validity: %d, key_client_ss: ", cipher_message_d_status.MPI_SOURCE, st.id, st.client_address, st.validity);
                 print_key(st.key);
                 printf("TGS: send message e(ST) ciphertext to client %d: ", cipher_message_d_status.MPI_SOURCE);
@@ -174,7 +174,7 @@ int main() {
                 printf("SS: recv ST ciphertext from client %d: ", st_ciphertext_status.MPI_SOURCE);
                 print_message(buffer, st_ciphertext_size);
                 Ticket st;
-                des_decrypt(buffer, st_ciphertext_size, &st, key_ss);
+                des_decrypt(buffer, st_ciphertext_size, (uint8_t*)&st, key_ss);
                 printf("SS: message e(ST) origin text from client %d: client id: %d, address: %d, validity: %d, key_client_ss: ", st_ciphertext_status.MPI_SOURCE, st.id, st.client_address, st.validity);
                 print_key(st.key);
                 memcpy(key_client_ss, st.key, 8);
@@ -186,7 +186,7 @@ int main() {
                 printf("SS: recv message g ciphertext from client %d: ", message_g_ciphertext_status.MPI_SOURCE);
                 print_message(buffer, message_g_ciphertext_size);
                 Auth message_g;
-                des_decrypt(buffer, message_g_ciphertext_size, &message_g, st.key);
+                des_decrypt(buffer, message_g_ciphertext_size, (uint8_t*)&message_g, st.key);
                 printf("SS: message g origin text from client %d: client id: %d, timestamp: %ld\n", message_g_ciphertext_status.MPI_SOURCE, message_g.id, message_g.timestamp);
             
                 // 进行验证
@@ -214,7 +214,7 @@ int main() {
                     Auth message_h = message_g;
                     message_h.timestamp++;
                     printf("SS: message h origin text to client %d: client id: %d, timestamp: %ld\n", message_g_ciphertext_status.MPI_SOURCE, message_h.id, message_h.timestamp);
-                    int message_h_ciphertext_size = des_encrypt(&message_h, sizeof(Auth), buffer, key_client_ss);
+                    int message_h_ciphertext_size = des_encrypt((uint8_t*)&message_h, sizeof(Auth), buffer, key_client_ss);
                     printf("SS: send message h ciphertext to client %d: ", message_g_ciphertext_status.MPI_SOURCE);
                     print_message(buffer, message_h_ciphertext_size);
                     MPI_Send(buffer, message_h_ciphertext_size, MPI_UNSIGNED_CHAR, message_g_ciphertext_status.MPI_SOURCE, 0, MPI_COMM_WORLD);
@@ -271,7 +271,7 @@ int main() {
         // 发送 message d
         Auth message_d = {my_rank, time(NULL)};
         printf("Client %d: message d origin text: id: %d, timestamp: %d\n", my_rank, message_d.id, message_d.timestamp);
-        int message_d_cipher_size = des_encrypt(&message_d, sizeof(Auth), buffer, key_client_tgs);
+        int message_d_cipher_size = des_encrypt((uint8_t*)&message_d, sizeof(Auth), buffer, key_client_tgs);
         printf("Client %d: send message d ciphertext to TGS: ", my_rank);
         print_message(buffer, message_d_cipher_size);
         MPI_Send(buffer, message_d_cipher_size, MPI_UNSIGNED_CHAR, 1, 0, MPI_COMM_WORLD);
@@ -330,7 +330,7 @@ int main() {
             // 发送 message g
             Auth message_g = {my_rank, time(NULL)};
             printf("Client %d: message g origin text: id: %d, timestamp: %d\n", my_rank, message_g.id, message_g.timestamp);
-            int message_g_ciphertext_size = des_encrypt(&message_g, sizeof(Auth), buffer, key_client_ss);
+            int message_g_ciphertext_size = des_encrypt((uint8_t*)&message_g, sizeof(Auth), buffer, key_client_ss);
             printf("Client %d: send message g ciphertext to TGS: ", my_rank);
             print_message(buffer, message_g_ciphertext_size);
             MPI_Send(buffer, message_g_ciphertext_size, MPI_UNSIGNED_CHAR, 2, 0, MPI_COMM_WORLD);
@@ -359,7 +359,7 @@ int main() {
 
                 // 解密 message h
                 Auth message_h;
-                des_decrypt(buffer, message_h_ciphertext_size, &message_h, key_client_ss);
+                des_decrypt(buffer, message_h_ciphertext_size, (uint8_t*)&message_h, key_client_ss);
                 printf("Client %d: message h origin text from SS: client id: %d, timestamp: %ld\n", my_rank, message_h.id, message_h.timestamp);
 
                 if (message_h.timestamp == message_g.timestamp + 1) {

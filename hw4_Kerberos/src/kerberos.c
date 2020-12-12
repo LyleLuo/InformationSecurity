@@ -4,7 +4,7 @@
 
 void kerberos_generate_key_client(int password, uint8_t key_client[8]) {
     uint8_t buffer[100];
-    MD5(&password, 4, buffer);
+    MD5((uint8_t*)&password, 4, buffer);
     printf("MD5 hash result of %d: ", password);
     print_result(buffer);
     memcpy(key_client, buffer, 8);
