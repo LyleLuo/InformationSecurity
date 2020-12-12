@@ -81,7 +81,7 @@ int main() {
             // 接受 message b 并解密
             Ticket message_b;
             MPI_Status cipher_message_b_status;
-            MPI_Recv(buffer, BUF_SIZE, MPI_UNSIGNED_CHAR, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &cipher_message_b_status);
+            MPI_Recv(buffer, BUF_SIZE, MPI_UNSIGNED_CHAR, service_ID_status.MPI_SOURCE, 0, MPI_COMM_WORLD, &cipher_message_b_status);
             int cipher_message_b_size;
             MPI_Get_count(&cipher_message_b_status, MPI_UNSIGNED_CHAR, &cipher_message_b_size);
             printf("TGS: recv message b(TGT) ciphertext from client %d: ", cipher_message_b_status.MPI_SOURCE);
@@ -93,7 +93,7 @@ int main() {
             // 接受 message d 并解密
             Auth message_d;
             MPI_Status cipher_message_d_status;
-            MPI_Recv(buffer, BUF_SIZE, MPI_UNSIGNED_CHAR, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &cipher_message_d_status);
+            MPI_Recv(buffer, BUF_SIZE, MPI_UNSIGNED_CHAR, service_ID_status.MPI_SOURCE, 0, MPI_COMM_WORLD, &cipher_message_d_status);
             int cipher_message_d_size;
             MPI_Get_count(&cipher_message_d_status, MPI_UNSIGNED_CHAR, &cipher_message_d_size);
             printf("TGS: recv message d ciphertext from client %d: ", cipher_message_d_status.MPI_SOURCE);
@@ -101,21 +101,28 @@ int main() {
             des_decrypt(buffer, cipher_message_d_size, &message_d, message_b.key);
             printf("TGS: message d origin text from client %d: client id: %d, time: %ld\n",cipher_message_d_status.MPI_SOURCE, message_d.id, message_d.timestamp);
 
-            // 判断时效性顺便发送 service ID (消息E之一)
             printf("TGS: send service ID: %d to client %d\n", service_ID, cipher_message_d_status.MPI_SOURCE);
+            // 判断正确性
+            int error_code;
             if (time(NULL) - message_d.timestamp > message_b.validity) {
-                MPI_Send(&service_ID, 1, MPI_INT, cipher_message_d_status.MPI_SOURCE, 1, MPI_COMM_WORLD);
+                error_code = 1;
+                MPI_Send(&error_code, 1, MPI_INT, cipher_message_d_status.MPI_SOURCE, 0, MPI_COMM_WORLD);
                 printf("TGS: timeout error!\n");
             }
             else if (message_b.id != message_d.id) {
-                MPI_Send(&service_ID, 1, MPI_INT, cipher_message_d_status.MPI_SOURCE, 2, MPI_COMM_WORLD);
+                error_code = 2;
+                MPI_Send(&error_code, 1, MPI_INT, cipher_message_d_status.MPI_SOURCE, 0, MPI_COMM_WORLD);
                 printf("TGS: id error!\n");
             }
             else if (client_record[cipher_message_d_status.MPI_SOURCE] >= message_d.timestamp) {
-                MPI_Send(&service_ID, 1, MPI_INT, cipher_message_d_status.MPI_SOURCE, 3, MPI_COMM_WORLD);
+                error_code = 3;
+                MPI_Send(&error_code, 1, MPI_INT, cipher_message_d_status.MPI_SOURCE, 0, MPI_COMM_WORLD);
                 printf("TGS: timestamp error!\n");
             }
             else {
+                error_code = 0;
+                MPI_Send(&error_code, 1, MPI_INT, cipher_message_d_status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+                // 发送 service ID (消息E之一)
                 MPI_Send(&service_ID, 1, MPI_INT, cipher_message_d_status.MPI_SOURCE, 0, MPI_COMM_WORLD);
                 // 发送 ST (消息E之一)
                 generate_key(key_client_ss);
@@ -150,15 +157,18 @@ int main() {
         print_message(key_ss, 8);
         
         for (int i = 3; i < comm_sz; ++i) {
-            // 接收 message e(servive ID)
-            int service_ID;
-            MPI_Status service_ID_status;
-            MPI_Recv(&service_ID, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &service_ID_status);
-            if (service_ID_status.MPI_TAG == 0) {
+            int error_code;
+            MPI_Status error_code_status;
+            MPI_Recv(&error_code, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &error_code_status);
+            if (error_code == 0) {
+                // 接收 message e(servive ID)
+                int service_ID;
+                MPI_Status service_ID_status;
+                MPI_Recv(&service_ID, 1, MPI_INT, error_code_status.MPI_SOURCE, 0, MPI_COMM_WORLD, &service_ID_status);
                 printf("SS: recv service ID: %d from client %d\n", service_ID, service_ID_status.MPI_SOURCE);
                 // 接受 message e(ST)
                 MPI_Status st_ciphertext_status;
-                MPI_Recv(buffer, BUF_SIZE, MPI_UNSIGNED_CHAR, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &st_ciphertext_status);
+                MPI_Recv(buffer, BUF_SIZE, MPI_UNSIGNED_CHAR, error_code_status.MPI_SOURCE, 0, MPI_COMM_WORLD, &st_ciphertext_status);
                 int st_ciphertext_size;
                 MPI_Get_count(&st_ciphertext_status, MPI_UNSIGNED_CHAR, &st_ciphertext_size);
                 printf("SS: recv ST ciphertext from client %d: ", st_ciphertext_status.MPI_SOURCE);
@@ -170,7 +180,7 @@ int main() {
                 memcpy(key_client_ss, st.key, 8);
                 // 接收 message g
                 MPI_Status message_g_ciphertext_status;
-                MPI_Recv(buffer, BUF_SIZE, MPI_UNSIGNED_CHAR, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &message_g_ciphertext_status);
+                MPI_Recv(buffer, BUF_SIZE, MPI_UNSIGNED_CHAR, error_code_status.MPI_SOURCE, 0, MPI_COMM_WORLD, &message_g_ciphertext_status);
                 int message_g_ciphertext_size;
                 MPI_Get_count(&message_g_ciphertext_status, MPI_UNSIGNED_CHAR, &message_g_ciphertext_size);
                 printf("SS: recv message g ciphertext from client %d: ", message_g_ciphertext_status.MPI_SOURCE);
@@ -266,23 +276,27 @@ int main() {
         print_message(buffer, message_d_cipher_size);
         MPI_Send(buffer, message_d_cipher_size, MPI_UNSIGNED_CHAR, 1, 0, MPI_COMM_WORLD);
 
-        // 接收 message e
-        // 接受 service ID
+
         MPI_Status judge_flag;
-        MPI_Recv(&service_ID, 1, MPI_INT, 1, MPI_ANY_TAG, MPI_COMM_WORLD, &judge_flag);
-        if (judge_flag.MPI_TAG == 1) {
+        int error_code;
+        MPI_Recv(&error_code, 1, MPI_INT, 1, 0, MPI_COMM_WORLD, &judge_flag);
+        if (error_code == 1) {
             printf("Client %d: timeout error!\n", my_rank);
-            MPI_Send(&service_ID, 1, MPI_INT, 2, 1, MPI_COMM_WORLD);
+            MPI_Send(&error_code, 1, MPI_INT, 2, 0, MPI_COMM_WORLD);
         }
-        else if (judge_flag.MPI_TAG == 2) {
+        else if (error_code == 2) {
             printf("Client %d: id error!\n", my_rank);
-            MPI_Send(&service_ID, 1, MPI_INT, 2, 2, MPI_COMM_WORLD);
+            MPI_Send(&error_code, 1, MPI_INT, 2, 0, MPI_COMM_WORLD);
         }
-        else if (judge_flag.MPI_TAG == 3) {
+        else if (error_code == 3) {
             printf("Client %d: timestamp error!\n", my_rank);
-            MPI_Send(&service_ID, 1, MPI_INT, 2, 3, MPI_COMM_WORLD);
+            MPI_Send(&error_code, 1, MPI_INT, 2, 0, MPI_COMM_WORLD);
         }
         else {
+            MPI_Send(&error_code, 1, MPI_INT, 2, 0, MPI_COMM_WORLD);
+            // 接收 message e
+            // 接受 service ID
+            MPI_Recv(&service_ID, 1, MPI_INT, 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             printf("Client %d: recv service ID: %d from TGS\n", my_rank, service_ID);
             // 接受 ST 
             MPI_Status st_status;
